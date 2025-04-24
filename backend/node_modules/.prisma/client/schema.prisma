@@ -1,0 +1,275 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model app_usuario {
+  id                                             Int            @id @default(autoincrement())
+  nome                                           String         @db.VarChar(255)
+  email                                          String         @unique @db.VarChar(255)
+  senha                                          String         @db.VarChar(255)
+  clinica_id                                     Int?
+  criado_em                                      DateTime?      @default(now()) @db.Timestamp(6)
+  atualizado_em                                  DateTime?      @default(now()) @db.Timestamp(6)
+  clinicaId                                      Int?
+  app_log_acao                                   app_log_acao[]
+  app_clinica_app_usuario_clinicaIdToapp_clinica app_clinica?   @relation("app_usuario_clinicaIdToapp_clinica", fields: [clinicaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  app_clinica                                    app_clinica?   @relation(fields: [clinica_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([clinica_id], map: "idx_app_usuario_clinica_id")
+}
+
+model app_clinica {
+  id                                             Int                     @id @default(autoincrement())
+  nome                                           String                  @db.VarChar(255)
+  endereco                                       String?                 @db.VarChar(500)
+  telefone                                       String?                 @db.VarChar(20)
+  email                                          String?                 @db.VarChar(255)
+  instancia                                      String?                 @db.VarChar(100)
+  base_url                                       String?                 @db.VarChar(500)
+  criada_em                                      DateTime?               @default(now()) @db.Timestamp(6)
+  atualizada_em                                  DateTime?               @default(now()) @db.Timestamp(6)
+  tokenEvolution                                 String?                 @unique
+  app_conversa                                   app_conversa[]
+  app_grupo                                      app_grupo[]
+  app_mensagem_sugestao                          app_mensagem_sugestao[]
+  app_paciente                                   app_paciente[]
+  app_paciente_clinica                           app_paciente_clinica[]
+  app_resposta_pronta                            app_resposta_pronta[]
+  app_tag                                        app_tag[]
+  app_usuario_app_usuario_clinicaIdToapp_clinica app_usuario[]           @relation("app_usuario_clinicaIdToapp_clinica")
+  app_usuario                                    app_usuario[]
+}
+
+model app_log_acao {
+  id          Int          @id @default(autoincrement())
+  usuario_id  Int?
+  acao        String?
+  criado_em   DateTime?    @default(now()) @db.Timestamp(6)
+  app_usuario app_usuario? @relation(fields: [usuario_id], references: [id], onUpdate: NoAction)
+}
+
+model app_conversa {
+  id            Int            @id @default(autoincrement())
+  paciente_id   Int?
+  clinica_id    Int?
+  iniciada_em   DateTime?      @default(now()) @db.Timestamp(6)
+  atualizada_em DateTime?      @default(now()) @db.Timestamp(6)
+  grupo_id      Int?
+  app_clinica   app_clinica?   @relation(fields: [clinica_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  app_paciente  app_paciente?  @relation(fields: [paciente_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  app_grupo     app_grupo?     @relation(fields: [grupo_id], references: [id], onUpdate: NoAction, map: "fk_conversa_grupo")
+  app_mensagem  app_mensagem[]
+
+  @@index([paciente_id, clinica_id], map: "idx_app_conversa_paciente_clinica")
+}
+
+model app_mensagem {
+  id            Int           @id(map: "app_mensagem_duplicate_pkey") @default(autoincrement())
+  conversa_id   Int?
+  remetente     String?       @db.VarChar(50)
+  conteudo      String?
+  tipo_mensagem String?       @db.VarChar(50)
+  evolution_id  String?       @unique(map: "app_mensagem_duplicate_evolution_id_key")
+  status        String?
+  criadaEm      DateTime?     @default(now()) @db.Timestamp(6)
+  app_conversa  app_conversa? @relation(fields: [conversa_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "app_mensagem_duplicate_conversa_id_fkey")
+  app_midia     app_midia[]
+  app_receipt   app_receipt[]
+
+  @@index([conversa_id], map: "app_mensagem_duplicate_conversa_id_idx")
+}
+
+model app_mensagem_sugestao {
+  id          Int          @id @default(autoincrement())
+  clinica_id  Int?
+  sugestao    String
+  criado_em   DateTime?    @default(now()) @db.Timestamp(6)
+  app_clinica app_clinica? @relation(fields: [clinica_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model app_midia {
+  id           Int          @id @default(autoincrement())
+  mensagem_id  Int
+  tipo         String?      @db.VarChar(50)
+  file_url     String?
+  criado_em    DateTime?    @default(now()) @db.Timestamp(6)
+  mime_type    String?      @db.VarChar(100)
+  caption      String?
+  duration     Int?
+  file_size    BigInt?
+  app_mensagem app_mensagem @relation(fields: [mensagem_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_midia_mensagem")
+
+  @@index([mensagem_id], map: "idx_midia_mensagem_id")
+}
+
+model app_paciente {
+  id                   Int                    @id @default(autoincrement())
+  nome                 String                 @db.VarChar(255)
+  email                String?                @db.VarChar(255)
+  telefone             String                 @db.VarChar(20)
+  criado_em            DateTime?              @default(now()) @db.Timestamp(6)
+  atualizado_em        DateTime?              @default(now()) @db.Timestamp(6)
+  clinica_id           Int?
+  app_conversa         app_conversa[]
+  app_clinica          app_clinica?           @relation(fields: [clinica_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_paciente_clinica")
+  app_paciente_clinica app_paciente_clinica[]
+
+  @@unique([telefone, clinica_id], map: "ux_paciente_telefone_clinica")
+  @@index([telefone], map: "idx_app_paciente_telefone")
+}
+
+model app_paciente_clinica {
+  paciente_id  Int
+  clinica_id   Int
+  app_clinica  app_clinica  @relation(fields: [clinica_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  app_paciente app_paciente @relation(fields: [paciente_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([paciente_id, clinica_id])
+}
+
+model app_resposta_pronta {
+  id          Int          @id @default(autoincrement())
+  clinica_id  Int?
+  titulo      String?      @db.VarChar(255)
+  conteudo    String?
+  criada_em   DateTime?    @default(now()) @db.Timestamp(6)
+  app_clinica app_clinica? @relation(fields: [clinica_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model app_tag {
+  id          Int          @id @default(autoincrement())
+  nome        String?      @db.VarChar(255)
+  clinica_id  Int?
+  criada_em   DateTime?    @default(now()) @db.Timestamp(6)
+  app_clinica app_clinica? @relation(fields: [clinica_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model consultas {
+  id          Int        @id @default(autoincrement())
+  medico_id   Int?
+  data_hora   DateTime   @db.Timestamp(6)
+  tipo        String
+  status      String     @default("agendado")
+  paciente_id String?
+  medicos     medicos?   @relation(fields: [medico_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  pacientes   pacientes? @relation(fields: [paciente_id], references: [telefone], onDelete: NoAction, onUpdate: NoAction, map: "fk_consultas_paciente")
+}
+
+model conversations {
+  id            Int       @id @default(autoincrement())
+  telefone_user String
+  messages      Json
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+model documents {
+  id        BigInt                 @id @default(autoincrement())
+  text      String
+  metadata  Json?
+  embedding Unsupported("vector")?
+
+  @@index([embedding])
+}
+
+model especialidades {
+  id        Int       @id @default(autoincrement())
+  nome      String
+  descricao String?
+  medicos   medicos[]
+}
+
+model medico_procedimentos {
+  id              Int           @id @default(autoincrement())
+  medico_id       Int
+  procedimento_id Int
+  medicos         medicos       @relation(fields: [medico_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  procedimentos   procedimentos @relation(fields: [procedimento_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model medico_sintomas {
+  id         Int      @id @default(autoincrement())
+  medico_id  Int
+  sintoma_id Int
+  medicos    medicos  @relation(fields: [medico_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sintomas   sintomas @relation(fields: [sintoma_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model medicos {
+  id                   Int                    @id @default(autoincrement())
+  nome                 String
+  especialidade_id     Int?
+  id_calendario        String?
+  dia_atendimento      String?
+  metodo_pagamento     String?
+  consultas            consultas[]
+  medico_procedimentos medico_procedimentos[]
+  medico_sintomas      medico_sintomas[]
+  especialidades       especialidades?        @relation(fields: [especialidade_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model n8n_chat_histories {
+  id         Int    @id @default(autoincrement())
+  session_id String @db.VarChar(255)
+  message    Json
+}
+
+model pacientes {
+  id        Int         @default(autoincrement())
+  nome      String
+  telefone  String      @id(map: "pacientes_telefone_pkey")
+  consultas consultas[]
+}
+
+model procedimentos {
+  id                   Int                    @id @default(autoincrement())
+  nome                 String
+  preco                Decimal?               @db.Decimal(10, 2)
+  tempo_estimado       String?
+  descricao            String?
+  medico_procedimentos medico_procedimentos[]
+}
+
+model schema_migrations {
+  version String @id @db.VarChar
+}
+
+model sintomas {
+  id              Int               @id @default(autoincrement())
+  nome            String
+  descricao       String?
+  medico_sintomas medico_sintomas[]
+}
+
+model agent_control {
+  numero            String   @id @db.VarChar(50)
+  agente_ativo      Boolean  @default(true)
+  datehora          DateTime @db.Timestamptz(6)
+  ignorar_automacao Boolean?
+}
+
+model app_grupo {
+  id           Int            @id @default(autoincrement())
+  jid          String         @unique @db.VarChar(100)
+  nome         String?        @db.VarChar(255)
+  clinica_id   Int
+  criado_em    DateTime?      @default(now()) @db.Timestamp(6)
+  app_conversa app_conversa[]
+  app_clinica  app_clinica    @relation(fields: [clinica_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_grupo_clinica")
+}
+
+model app_receipt {
+  id           Int          @id @default(autoincrement())
+  mensagem_id  Int
+  event_type   String       @db.VarChar(50)
+  receipt_time DateTime     @db.Timestamp(6)
+  created_at   DateTime?    @default(now()) @db.Timestamp(6)
+  app_mensagem app_mensagem @relation(fields: [mensagem_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_receipt_mensagem")
+
+  @@index([mensagem_id, event_type], map: "idx_receipt_mensagem_id")
+}

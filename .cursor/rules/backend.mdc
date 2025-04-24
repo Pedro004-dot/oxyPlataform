@@ -1,0 +1,89 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+name: backend-structure
+description: >
+  Regras e padrões para construção do backend da plataforma. O projeto usa. A arquitetura é modular com foco em escalabilidade, legibilidade e separação por responsabilidade.
+
+rules:
+  - Toda lógica de negócio deve estar isolada em arquivos de **services**, um por operação.
+  - Controllers são separados e **apenas orquestram** (não contêm regras de negócio).
+  - Arquivos de controllers e services devem estar organizados em subpastas por entidade:
+    - Exemplo: `controllers/clinica/createClinicaController.ts`
+    - Exemplo: `services/usuario/createUsuarioService.ts`
+
+structure:
+  - services/
+    - Um arquivo por operação (ex: `createUsuarioService.ts`)
+    - Deve usar Prisma
+    - Validações manuais e regras de negócio dentro do service
+    - Usar interfaces importadas de `/models/schema.model.ts`
+  - controllers/
+    - Um arquivo por operação, dentro da pasta da entidade
+    - Responsável por capturar `req.body`, chamar o service, retornar resposta
+    - Utiliza `try/catch` com logging
+  - routes/
+    - Agrupa os controllers por domínio usando `express.Router()`
+    - Usa middlewares como `isAuthenticate` para proteger as rotas
+    - Exemplo: `routes/usuarioRoutes.ts`
+
+stack:
+  - Prisma + Supabase
+  - TypeScript
+  - Express-style API (com rotas na pasta `/api`)
+  - Redis
+
+
+validation:
+  - NÃO usar Zod, Joi, ou libs externas de validação
+  - Em vez disso:
+    - Criar interfaces manualmente no arquivo `/models/schema.model.ts`
+    - Ex: `interface CreateUsuarioInput { nome: string; email: string; ... }`
+    - Controller coleta dados e envia para o service com base nessa interface
+
+style:
+  - Código 100% em TypeScript
+  - Tipagem forte em funções, parâmetros e retornos
+  - Comentários com JSDoc (`/** ... */`) antes das funções importantes
+  - Uso explícito de async/await
+  - Sem lógica de banco dentro de controller
+
+standards:
+  - Separação rigorosa entre camada de rota, controller e lógica de negócio
+  - Prisma centralizado em `prisma.ts`
+  - Regras de negócio e validações são responsabilidade do service
+  - Controle de erros com `try/catch` e mensagens claras
+  - Tudo versionado e organizado por entidade
+
+naming:
+  - Controllers: `controllers/entidade/nomeOperacaoController.ts`
+  - Services: `services/entidade/nomeOperacaoService.ts`
+  - Routes: `routes/entidadeRoutes.ts`
+  - Interfaces: `schema.model.ts` → uma por entidade (ex: `CreateUsuarioInput`)
+  - Métodos: camelCase (`createUsuario`, `getPacienteByTelefone`)
+
+extra:
+  - Sempre comentar partes críticas com **por que** aquilo está sendo feito
+  - Preferência por funções puras, curtas e legíveis
+  - Se precisar validar regra de domínio (ex: CPF), fazer no service
+  - Controllers devem ser o mais limpos possível
+
+  middleware:
+  - Os middlewares devem ser armazenados em `middleware/` (ex: `authMiddleware.ts`)
+  - O middleware de autenticação (`isAuthenticate`) deve:
+    - Extrair o token do header
+    - Verificar o JWT
+    - Anexar o usuário ao `req.user` (tipado)
+    - Retornar erro 401 se inválido
+
+auth:
+  - A autenticação deve ser feita via JWT
+  - As senhas devem ser hashadas com `bcrypt`
+  - Crie utilitários para gerar e verificar tokens (ex: `lib/jwt.ts`)
+  - A entidade `usuario` deve ter os campos `email`, `senha`, `permissoes` obrigatórios para login
+  - A lógica de login deve estar em `services/usuario/loginUsuarioService.ts`
+  - A rota de login deve ser `POST /api/usuarios/login`
+  - Crie uma rota `GET /api/usuarios/me` protegida por `isAuthenticate` que retorna os dados do usuário logado
+
