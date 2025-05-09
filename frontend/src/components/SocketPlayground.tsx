@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import  { useEffect, useRef, useState } from 'react';
 import { connectSocket, ChatSocket } from '../hook/useSocket';
 const CONV_ID  = Number(import.meta.env.VITE_TEST_CONV);
+
 export default function SocketPlayground() {
   const JWT = import.meta.env.VITE_TEST_JWT as string;
   const DEFAULT_CONV = Number(import.meta.env.VITE_TEST_CONV);
@@ -27,11 +28,15 @@ export default function SocketPlayground() {
       { conversationId: CONV_ID, limit: 20 },
       (resp: any) => console.log('hist', resp)
     );
+    
     /* escuta push */
-    sock.on('message:new',  (m: any) => console.log('push new', m));
+    sock.on('message:new', (m: any) => {
+      console.log('push new', m);  // Mantenha esse log temporariamente para depuração
+      addLog(`Nova mensagem: ${m.conteudo}`); // Armazene as mensagens no estado para mostrar na UI
+    });
+
     sock.on('message:status', (s: any) => console.log('push status', s));
     
-
     return () => {
       sock.disconnect();
     };
@@ -64,24 +69,18 @@ export default function SocketPlayground() {
         )
     );
 
-    const ackFn = (resp: { success: boolean; error?: string; msg?: any }) => {
-      if (resp.success) {
-        addLog('➡️ sent ok');
-      } else {
-        addLog(`⚠️ send err ${resp.error}`);
-      }
-    };
-  // Send message
-    
+  // Function to send a message
   const send = () => {
     if (!text.trim()) return;
     socketRef.current?.emit(
       'message:send',
       { conversationId: convId, content: text },
-      ackFn,   // 🟢 agora existe
+      (resp: { success: boolean; error?: string }) =>
+        addLog(resp.success ? '➡️ sent ok' : `⚠️ send err ${resp.error}`)
     );
     setText('');
   };
+
   return (
     <div className="p-6 max-w-xl mx-auto space-y-4">
       <h1 className="text-2xl font-semibold">Socket Playground</h1>
@@ -109,6 +108,7 @@ export default function SocketPlayground() {
         <button onClick={send} className={btn}>enviar</button>
       </div>
 
+      {/* Exibe os logs com mensagens recebidas */}
       <pre className="bg-black text-green-300 p-3 h-64 overflow-y-auto text-xs">
         {logs.map((l, i) => (
           <div key={i}>{l}</div>

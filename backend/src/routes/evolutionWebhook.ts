@@ -6,6 +6,7 @@ import { chatController } from '../controllers/chatController';
 
 export const evolutionRouter = express.Router();
 
+
 evolutionRouter.post('/messages-upsert', async (req, res) => {
   try {
     const payload = req.body;
@@ -34,7 +35,7 @@ evolutionRouter.post('/messages-upsert', async (req, res) => {
       await chatController.handleIncoming({
         clinicId: clinic.id,
         conversationId: convId,
-        msg: m
+        msg: m,
       });
     }
 

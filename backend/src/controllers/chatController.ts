@@ -1,7 +1,7 @@
 // backend/src/controllers/chatController.ts
 import prisma from '../../prisma/client';
 import { evolutionClient } from '../services/evolutionClient';
-import { getIo, roomName } from '../socket';
+import { feedRoom, getIo, roomName } from '../socket';
 import { NormalizedMessage } from '../integrations/evolution/evolParser';
 
 // --- Tipos e constantes para validação de tipos de mensagem ---
@@ -108,6 +108,28 @@ export const chatController = {
     getIo()
       .to(roomName(clinicId, conversationId))
       .emit('message:new', saved);
+    
+
+      const conv = await prisma.app_conversa.findUnique({
+        where : { id: conversationId },
+        select: {
+          id          : true,
+          atualizada_em: true,
+          app_paciente: { select: { nome: true }},
+          app_grupo   : { select: { jid: true }}
+        }
+      });
+      
+    const preview = {
+      id           : conversationId,
+      nomePaciente : conv?.app_paciente?.nome ?? conv?.app_grupo?.jid ?? 'Desconhecido',
+      ultimaMensagem: saved.conteudo ?? `[${saved.tipo_mensagem}]`,
+      atualizadaEm : saved.criadaEm
+    };
+
+    getIo()
+    .to(feedRoom(clinicId))
+    .emit('conversation:list', preview);
 
     return saved;
   },
@@ -175,10 +197,16 @@ export const chatController = {
   /**
    * Carrega o histórico de mensagens de uma conversa
    */
-  async loadHistory({ clinicId, conversationId, limit = 40 }: {
+  async loadHistory({
+    clinicId,
+    conversationId,
+    limit = 40,
+    before
+  }: {
     clinicId: number;
     conversationId: number;
     limit?: number;
+    before?: Date;
   }) {
     // Verifica se a conversa pertence à clínica
     const conversation = await prisma.app_conversa.findFirst({
@@ -187,22 +215,31 @@ export const chatController = {
         clinica_id: clinicId
       }
     });
-
+  
     if (!conversation) {
       throw new Error('Conversa não encontrada ou não pertence à clínica');
     }
-
-    // Busca as mensagens mais recentes
+  
+    // Filtro de data (caso seja paginação)
+    const whereClause: any = {
+      conversa_id: conversationId
+    };
+    if (before) {
+      whereClause.criadaEm = { lt: before };
+    }
+  
+    // Busca as mensagens mais recentes primeiro
     const messages = await prisma.app_mensagem.findMany({
-      where: {
-        conversa_id: conversationId
-      },
+      where: whereClause,
       orderBy: {
         criadaEm: 'desc'
       },
-      take: 100
+      take: limit
     });
-
-    return messages;
+  
+    return {
+      items: messages,
+      hasMore: messages.length === limit
+    };
   }
 };

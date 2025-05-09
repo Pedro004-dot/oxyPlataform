@@ -19,6 +19,9 @@ export function getIo() {
   if (!io) throw new Error('Socket.io não inicializado');
   return io;
 }
+export function feedRoom(clinicId: number) {
+  return `clinic:${clinicId}:feed`;
+}
 
 export function roomName(clinicId: number, conversationId: number) {
   return `clinic:${clinicId}:conv:${conversationId}`;

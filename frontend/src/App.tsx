@@ -1,12 +1,12 @@
 // src/App.tsx
 
 import { BrowserRouter } from 'react-router-dom';
-import SocketPlayground from './components/SocketPlayground';
+import Chat from './pages/chatPage';
 
 function App() {
   return (
     <BrowserRouter>
-      <SocketPlayground />
+      <Chat />
     </BrowserRouter>
   );
 }

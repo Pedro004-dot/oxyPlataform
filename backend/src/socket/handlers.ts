@@ -1,7 +1,7 @@
 import { Server } from 'socket.io';
 import { authMiddleware } from './authMiddleware';
 import { chatController } from '../controllers/chatController';
-import { roomName } from './index';
+import { feedRoom, roomName } from './index';
 
 export function register(io: Server) {
   io.on('connection', (socket) => {
@@ -11,7 +11,12 @@ export function register(io: Server) {
     // —–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
     // Eventos de "conversa"
     // —–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
-
+    socket.on('feed:join', ack => {
+      if (!clinicId) return ack?.({ success: false, error: 'no clinic' });
+      socket.join(`clinic:${clinicId}:feed`);
+      ack?.({ success: true });
+    });
+    
     socket.on('conversation:join', async (conversationId: number, ack) => {
       try {
         socket.join(roomName(clinicId, conversationId));
@@ -21,6 +26,7 @@ export function register(io: Server) {
         ack({ success: false, error: err.message });
       }
     });
+    
     socket.on(
       'conversation:history',
       async ({ conversationId, limit = 40 }, ack) => {
